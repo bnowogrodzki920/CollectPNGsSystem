@@ -10,53 +10,74 @@ namespace CollectPNGs
     {
         [SerializeField]
         private CollectPNGsSystemView view;
-        [SerializeField]
-        private string dataPath = "/Resources";
+        [SerializeField, Tooltip("Directory of PNGs folder in the Resources in the Assets folder")]
+        private string pngsDatapath = "";
 
         private void Awake()
         {
-            dataPath = Application.dataPath + dataPath;
             OnRefreshContent();
         }
 
         public void OnRefreshContent()
         {
-            List<Texture> collectedTextures = GetTextures();
-            string[] fileDirectories = Directory.GetFiles(dataPath);
+            List<Sprite> sprites = GetTextures();
+            if(sprites.Count == 0)
+            {
+                Debug.LogError("Couldn't find any sprites!");
+                return;
+            }
+            sprites.OrderBy(x => x.name);
+
+            string[] fileDirectories = Directory.GetFiles($"{Application.dataPath}/Resources{pngsDatapath}");
             
-            List<TextureInfo> fileInfos = new List<TextureInfo>();
+            List<SpriteInfo> spriteInfos = new List<SpriteInfo>();
 
             for (int i = 0; i < fileDirectories.Length; i++)
             {
                 if (fileDirectories[i].Contains(".meta")) continue;
-                fileInfos.Add(new TextureInfo(collectedTextures[i].name, Directory.GetCreationTime(fileDirectories[i]), collectedTextures[i]));
+                spriteInfos.Add(new SpriteInfo(GetFileName(fileDirectories[i]), GetHumanizedTimeSinceCreated(fileDirectories[i]), sprites[i / 2]));
             }
 
-            view.SetData(fileInfos);
+            view.SetData(spriteInfos);
         }
 
-        private List<Texture> GetTextures()
+        private List<Sprite> GetTextures()
         {
-            return Resources.LoadAll<Texture>("").ToList();
-        }
-    }
-
-    public struct TextureInfo
-    {
-        public string name;
-        public DateTime dateCreated;
-        public Texture texture;
-
-        public TextureInfo(string name, DateTime dateCreated, Texture texture)
-        {
-            this.name = name;
-            this.dateCreated = dateCreated;
-            this.texture = texture;
+            return Resources.LoadAll<Sprite>(pngsDatapath).ToList();
         }
 
-        public override string ToString()
+        private string GetFileName(string path)
         {
-            return name + dateCreated;
+            return path.Split('\\')[1];
+        }
+
+        private string GetHumanizedTimeSinceCreated(string path)
+        {
+            DateTime timeCreated = Directory.GetCreationTime(path);
+            DateTime now = DateTime.Now;
+            int days = now.DayOfYear - timeCreated.DayOfYear;
+            int hours = now.Hour - timeCreated.Hour;
+            int minutes = now.Minute - timeCreated.Minute;
+            int seconds = now.Second - timeCreated.Second;
+
+            if(days <= 0 && hours <= 0 && minutes <= 0 && seconds <= 10)
+            {
+                return "Just now";
+            }
+            else if(days <= 0 && hours <= 0 && minutes <= 0)
+            {
+                return $"{seconds} seconds ago";
+            }
+            else if (days <= 0 && hours <= 0)
+            {
+                return $"{minutes} minutes ago";
+            }
+            else if (days <= 0)
+            {
+                return $"{hours} hours ago";
+            }
+
+            return $"{days} days ago";
         }
     }
 }
